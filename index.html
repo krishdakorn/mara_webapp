@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="th">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Minimal REST API Tester</title>
+        <!-- โหลด Tailwind CSS สำหรับการออกแบบสไตล์มินิมอลและ Responsive -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            /* กำหนดฟอนต์หลัก */
+            body {
+                font-family: 'Inter', sans-serif;
+                background-color: #f7f9fb;
+                color: #333;
+            }
+            /* ซ่อนไอคอนโหลดเริ่มต้น (จะแสดงเมื่อมีการ fetch) */
+            #loading-indicator {
+                display: none;
+            }
+            /* สไตล์สำหรับกล่องข้อความแสดงผล JSON */
+            .json-output {
+                background-color: #1e293b; /* slate-800 */
+                color: #e2e8f0; /* slate-200 */
+                padding: 1rem;
+                border-radius: 0.5rem;
+                font-family: monospace;
+                white-space: pre-wrap;
+                min-height: 100px;
+                overflow-x: auto;
+                box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            }
+            /* สไตล์สำหรับปุ่มที่ใช้งานง่าย */
+            .btn-primary {
+                transition: all 0.15s ease-in-out;
+            }
+            .btn-primary:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            /* สไตล์ข้อความ Error/Success */
+            .message-box {
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                margin-top: 1rem;
+                font-weight: 600;
+            }
+        </style>
+    </head>
+    <body class="p-4 md:p-8">
+
+        <div class="max-w-4xl mx-auto">
+            
+            <header class="mb-8 text-center">
+                <h1 class="text-4xl font-extrabold text-gray-800">API Tester</h1>
+                <p class="mt-2 text-gray-500">ทดสอบ CRUD operations (GET, POST, PUT, DELETE) กับ API</p>
+                <!--
+                <div class="mt-4 p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+                    <span class="text-sm font-medium text-gray-700">API Base URL:</span>
+                    <code class="ml-2 text-sm text-blue-600 font-semibold" id="api-base-url">
+                        https://app-6p14o89eg-krishdakorn-hinanchais-projects.vercel.app/api/users
+                    </code>
+                </div>
+                -->
+            </header>
+            
+            <main class="space-y-8">
+                <!-- 1. POST/CREATE (สร้าง User ใหม่) -->
+                <section class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                    <h2 class="text-2xl font-semibold mb-4 text-indigo-600">POST (Create User)</h2>
+                    <div class="space-y-3">
+                        <input type="text" id="post-name" placeholder="Name (Required)" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <input type="email" id="post-email" placeholder="Email (Required, Unique)" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <input type="text" id="post-role" placeholder="Role (Optional)" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <input type="text" id="post-id" placeholder="Custom ID (Optional, Unique)" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <button id="post-btn" onclick="sendPostRequest()" class="btn-primary w-full bg-indigo-500 text-white py-2 rounded-lg font-bold hover:bg-indigo-600">
+                            POST /api/users
+                        </button>
+                    </div>
+                </section>
+
+                <!-- 2. GET (ค้นหา User ทั้งหมด/เดี่ยว) -->
+                <section class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                    <h2 class="text-2xl font-semibold mb-4 text-green-600">GET (Fetch Users)</h2>
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <input type="text" id="get-id" placeholder="User ID (Optional, Blank for ALL)" class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                        <button id="get-btn" onclick="sendGetRequest()" class="btn-primary bg-green-500 text-white py-2 px-4 rounded-lg font-bold hover:bg-green-600 md:w-auto">
+                            GET Request
+                        </button>
+                    </div>
+                </section>
+
+                <!-- 3. PUT/UPDATE (อัปเดต User) -->
+                <section class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                    <h2 class="text-2xl font-semibold mb-4 text-yellow-600">PUT (Update User)</h2>
+                    <div class="space-y-3">
+                        <input type="text" id="put-id" placeholder="User ID (Required)" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500">
+                        <input type="text" id="put-name" placeholder="New Name (Optional)" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500">
+                        <input type="text" id="put-role" placeholder="New Role (Optional)" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500">
+                        <button id="put-btn" onclick="sendPutRequest()" class="btn-primary w-full bg-yellow-500 text-white py-2 rounded-lg font-bold hover:bg-yellow-600">
+                            PUT /api/users/{id}
+                        </button>
+                    </div>
+                </section>
+
+                <!-- 4. DELETE (ลบ User) -->
+                <section class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                    <h2 class="text-2xl font-semibold mb-4 text-red-600">DELETE (Remove User)</h2>
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <input type="text" id="delete-id" placeholder="User ID (Required)" class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
+                        <button id="delete-btn" onclick="sendDeleteRequest()" class="btn-primary bg-red-500 text-white py-2 px-4 rounded-lg font-bold hover:bg-red-600 md:w-auto">
+                            DELETE Request
+                        </button>
+                    </div>
+                </section>
+
+                <!-- 5. Result Display -->
+                <section class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                    <h2 class="text-2xl font-semibold mb-4 text-gray-800 flex items-center">
+                        API Response
+                        <div id="loading-indicator" class="ml-4 flex items-center space-x-2 text-sm text-indigo-500">
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Loading...</span>
+                        </div>
+                    </h2>
+                    <div id="message-container"></div>
+                    <pre id="api-response-output" class="json-output"></pre>
+                </section>
+
+            </main>
+        </div>
+
+        <!-- JAVASCRIPT LOGIC START -->
+        <script>
+            // Global configuration
+            const BASE_URL = document.getElementById('api-base-url').textContent.trim();
+
+            // UI Elements
+            const responseOutput = document.getElementById('api-response-output');
+            const messageContainer = document.getElementById('message-container');
+            const loadingIndicator = document.getElementById('loading-indicator');
+
+            // --- Helper Functions ---
+
+            /**
+             * แสดงข้อความสถานะ (สำเร็จ/ผิดพลาด)
+             * @param {string} message ข้อความที่จะแสดง
+             * @param {boolean} isSuccess เป็น true หากเป็นข้อความสำเร็จ
+             */
+            function updateMessage(message, isSuccess) {
+                messageContainer.innerHTML = ''; // เคลียร์ข้อความเก่า
+                const messageBox = document.createElement('div');
+                messageBox.className = `message-box ${isSuccess ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'}`;
+                messageBox.textContent = message;
+                messageContainer.appendChild(messageBox);
+            }
+
+            /**
+             * แสดงผลลัพธ์ JSON ในรูปแบบที่อ่านง่าย
+             * @param {object} data ข้อมูล JSON
+             */
+            function updateOutput(data) {
+                try {
+                    responseOutput.textContent = JSON.stringify(data, null, 2);
+                } catch (e) {
+                    responseOutput.textContent = `Error: Could not display response data. Raw data: ${data}`;
+                }
+            }
+
+            function showLoading() {
+                loadingIndicator.style.display = 'flex';
+            }
+
+            function hideLoading() {
+                loadingIndicator.style.display = 'none';
+            }
+
+            /**
+             * ฟังก์ชันหลักสำหรับเรียกใช้ Fetch API
+             * @param {string} url URL เต็มสำหรับ request
+             * @param {string} method HTTP Method (GET, POST, PUT, DELETE)
+             * @param {object|null} bodyData ข้อมูลที่ส่งไปกับ request (สำหรับ POST/PUT)
+             */
+            async function sendRequest(url, method, bodyData = null) {
+                showLoading();
+                messageContainer.innerHTML = '';
+                // แสดงสถานะเริ่มต้น
+                updateOutput({ status: `Sending ${method} request...`, url, method });
+
+                try {
+                    const options = {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    };
+
+                    if (bodyData && (method === 'POST' || method === 'PUT')) {
+                        options.body = JSON.stringify(bodyData);
+                    }
+
+                    const response = await fetch(url, options);
+                    
+                    // ตรวจสอบว่า response มี content หรือไม่ก่อนพยายาม parse เป็น JSON
+                    const contentType = response.headers.get("content-type");
+                    let data = {};
+                    if (contentType && contentType.includes("application/json")) {
+                        data = await response.json();
+                    } else if (response.status === 204 || response.status === 202) {
+                        // 204 No Content หรือ 202 Accepted, มักไม่มี body
+                        data = { message: `Request successful, but no content returned (HTTP ${response.status}).` };
+                    } else {
+                        // หากไม่ใช่ JSON ให้พยายามอ่านเป็นข้อความธรรมดา
+                        const text = await response.text();
+                        data = { message: text.substring(0, 200) + (text.length > 200 ? '...' : '') || 'No response body.' };
+                    }
+
+                    updateOutput({
+                        status: response.status,
+                        statusText: response.statusText,
+                        url: url,
+                        method: method,
+                        response: data
+                    });
+
+                    if (response.ok) {
+                        updateMessage(`Success: ${method} request to ${url} returned status ${response.status}.`, true);
+                    } else {
+                        // API return error but still provides a JSON body
+                        updateMessage(`Error: ${method} request to ${url} failed with status ${response.status}. Please check the response body for API error details.`, false);
+                    }
+
+                } catch (error) {
+                    // Network error, JSON parsing error, etc.
+                    updateOutput({ 
+                        error_type: error.name, 
+                        error_message: error.message, 
+                        url, 
+                        method 
+                    });
+                    updateMessage(`Fatal Error: Could not complete ${method} request. Check network connection or API URL validity.`, false);
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            // --- CRUD Functions (Called by Buttons) ---
+
+            // POST (Create User)
+            async function sendPostRequest() {
+                const name = document.getElementById('post-name').value.trim();
+                const email = document.getElementById('post-email').value.trim();
+                const role = document.getElementById('post-role').value.trim();
+                const customId = document.getElementById('post-id').value.trim();
+
+                if (!name || !email) {
+                    updateMessage("Name and Email are required for POST request.", false);
+                    return;
+                }
+
+                const body = { name, email };
+                if (role) body.role = role;
+                if (customId) body.id = customId;
+
+                await sendRequest(BASE_URL, 'POST', body);
+            }
+
+            // GET (Fetch Users)
+            async function sendGetRequest() {
+                const id = document.getElementById('get-id').value.trim();
+                const url = id ? `${BASE_URL}/${id}` : BASE_URL; // If ID exists, append it
+
+                await sendRequest(url, 'GET');
+            }
+
+            // PUT (Update User)
+            async function sendPutRequest() {
+                const id = document.getElementById('put-id').value.trim();
+                const name = document.getElementById('put-name').value.trim();
+                const role = document.getElementById('put-role').value.trim();
+
+                if (!id) {
+                    updateMessage("User ID is required for PUT request.", false);
+                    return;
+                }
+
+                if (!name && !role) {
+                    updateMessage("At least one field (Name or Role) is required for update.", false);
+                    return;
+                }
+
+                const body = {};
+                if (name) body.name = name;
+                if (role) body.role = role;
+
+                const url = `${BASE_URL}/${id}`;
+
+                await sendRequest(url, 'PUT', body);
+            }
+
+            // DELETE (Remove User)
+            async function sendDeleteRequest() {
+                const id = document.getElementById('delete-id').value.trim();
+
+                if (!id) {
+                    updateMessage("User ID is required for DELETE request.", false);
+                    return;
+                }
+
+                const url = `${BASE_URL}/${id}`;
+
+                // DELETE request typically does not need a body
+                await sendRequest(url, 'DELETE');
+            }
+        </script>
+        <!-- JAVASCRIPT LOGIC END -->
+    </body>
+</html>
